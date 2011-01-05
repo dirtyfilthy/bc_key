@@ -33,7 +33,7 @@ DB *open_wallet(char *path){
 }
 
 unsigned int get_size(FILE *f){
-    unsigned char magic;
+    int magic;
     unsigned char byte1=0;
     unsigned char byte2=0;
     unsigned char byte3=0;
@@ -57,7 +57,7 @@ unsigned int get_size(FILE *f){
     else{
         exit(1);
     }
-    size=((unsigned int) byte4 << 3) | ((unsigned int) byte3 << 2) | ((unsigned int) byte2 << 1) | (unsigned int) byte1;
+    size=((unsigned int) byte4 << 24) + ((unsigned int) byte3 << 16) |  ((unsigned int) byte2 << 8) | (unsigned int) byte1;
     return size;
 }
 
@@ -172,15 +172,16 @@ void export_key(const unsigned char *key, int length){
     EC_KEY* pkey=EC_KEY_new();
     EC_GROUP *group = EC_GROUP_new_by_curve_name(NID_secp256k1);
     EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
-    EC_GROUP_set_point_conversion_form(group,POINT_CONVERSION_UNCOMPRESSED);
-    EC_KEY_set_group(pkey, group);
-    BIO *out=BIO_new(BIO_s_file()); // for commandline output
+    EC_GROUP_set_point_conversion_form(group, POINT_CONVERSION_UNCOMPRESSED);
+    EC_KEY_set_group(pkey,group);
+    BIO *out=BIO_new(BIO_s_file());
     BIO_set_fp(out,stdout,BIO_NOCLOSE);
-    if(!o2i_ECPublicKey(&pkey, &key, length)){
+    if(!d2i_ECPrivateKey(&pkey, &key, length)){
         printf("failed to make key\n");
         exit(1);
     }
-    PEM_write_bio_EC_PUBKEY(out, pkey);
+    PEM_write_bio_ECPKParameters(out, group);
+    PEM_write_bio_ECPrivateKey(out,pkey,NULL,NULL,0,NULL,NULL);
 }
 
 
@@ -192,35 +193,28 @@ void find_key(DBT *key, DBT *value, void *data){
     char *b58;
     char *public_key;
     int public_key_length;
+
+    char *private_key;
+    int private_key_length;
     int found_key=0;
     type=get_string(key_stream);
-    if(strcmp("key",type)==0 || strcmp("wkey",type)==0){
+    if(strcmp("key",type)==0){
         public_key_length=get_size(key_stream);
         public_key=(char *) malloc(public_key_length);
+        private_key_length=get_size(value_stream);
+        private_key=(char *) malloc(private_key_length);
         fread(public_key,1,public_key_length,key_stream);
-        found_key=1;
-    }
-    else if (strcmp("pool",type)==0){
-        fseek(value_stream,12,SEEK_SET);
-        public_key_length=get_size(value_stream);
-        public_key=(char *) malloc(public_key_length);
-        fread(public_key,1,public_key_length,value_stream);
-        found_key=1;
-    }
-    else if (strcmp("acc",type)==0){
-        fseek(value_stream,4,SEEK_SET);
-        public_key_length=get_size(value_stream);
-        public_key=(char *) malloc(public_key_length);
-        fread(public_key,1,public_key_length,value_stream);
+        fread(private_key,1,private_key_length,value_stream);
         found_key=1;
     }
     if(found_key){
         b58=public_key_to_bc_address(public_key,public_key_length);
         if(strcmp(b58,address)==0){
-            export_key(public_key,public_key_length);
+            export_key(private_key,private_key_length);
             exit(0);
         }
         free(public_key);
+        free(private_key);
         free(b58);
     }
     free(type);
