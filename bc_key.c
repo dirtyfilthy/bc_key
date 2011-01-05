@@ -11,7 +11,6 @@
 #include <openssl/sha.h>
 #include <openssl/ripemd.h>
 #include <openssl/evp.h>
-#define DATABASE "/home/alhazred/.bitcoin/wallet.dat"
 static const char* base58chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 DB *open_wallet(char *path){
