@@ -212,6 +212,10 @@ void find_key(DBT *key, DBT *value, void *data){
             export_key(private_key,private_key_length);
             exit(0);
         }
+        if(strcmp("ALL",address)==0){
+	    printf("%s\n", b58);
+            export_key(private_key,private_key_length);
+        }
         free(public_key);
         free(private_key);
         free(b58);
