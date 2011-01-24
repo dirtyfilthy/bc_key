@@ -167,32 +167,20 @@ char *public_key_to_bc_address(char *key, int length){
     
 }
 
-void export_key(const unsigned char *key, int length, int private){
+void export_key(const unsigned char *key, int length){
     EC_KEY* pkey=EC_KEY_new();
-    EVP_PKEY *pubkey=EVP_PKEY_new();
     EC_GROUP *group = EC_GROUP_new_by_curve_name(NID_secp256k1);
     EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
     EC_GROUP_set_point_conversion_form(group, POINT_CONVERSION_UNCOMPRESSED);
     EC_KEY_set_group(pkey,group);
     BIO *out=BIO_new(BIO_s_file());
     BIO_set_fp(out,stdout,BIO_NOCLOSE);
-
-    if(private){
-        PEM_write_bio_ECPKParameters(out, group);
-        if(!d2i_ECPrivateKey(&pkey, &key, length)){
-            printf("failed to make key\n");
-            exit(1);
-        }
-
-        PEM_write_bio_ECPrivateKey(out,pkey,NULL,NULL,0,NULL,NULL);
+    if(!d2i_ECPrivateKey(&pkey, &key, length)){
+        printf("failed to make key\n");
+        exit(1);
     }
-    else{
-
-        o2i_ECPublicKey(&pkey, &key, length); 
-        EVP_PKEY_assign_EC_KEY(pubkey,pkey);
-        PEM_write_bio_PUBKEY(out, pubkey);
-    }
-
+    PEM_write_bio_ECPKParameters(out, group);
+    PEM_write_bio_ECPrivateKey(out,pkey,NULL,NULL,0,NULL,NULL);
 }
 
 
@@ -221,8 +209,7 @@ void find_key(DBT *key, DBT *value, void *data){
     if(found_key){
         b58=public_key_to_bc_address(public_key,public_key_length);
         if(strcmp(b58,address)==0){
-            export_key(private_key,private_key_length,1);
-            export_key(public_key,public_key_length,0);
+            export_key(private_key,private_key_length);
             exit(0);
         }
         free(public_key);
