@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <db.h>
 #include <string.h> 
+#include <time.h> 
 #include <unistd.h>
 #include <openssl/buffer.h>
 #include <openssl/ecdsa.h>
@@ -253,12 +254,26 @@ void display(DBT *key, DBT *value, void *data){
         free(public_key);
         free(private_key);
         free(b58);
+    } else if(strcmp("acc",type)==0){
+	char *aname=get_string(key_stream);
+	printf("%s %s\n", type, aname);
+    } else if(strcmp("acentry",type)==0){
+	char *aname=get_string(key_stream);
+	printf("%s %s\n", type, aname);
     } else if(strcmp("name",type)==0){
 	char *name=get_string(key_stream);
 	printf("%s %s\n", type, name);
     } else if(strcmp("setting",type)==0){
+	int c;
 	char *setting=get_string(key_stream);
-	printf("%s %s\n", type, setting);
+	printf("%s %s ", type, setting);
+	while((c=fgetc(value_stream)) != EOF)
+	    printf("%02x", c);
+	printf("\n");
+    } else if(strcmp("version",type)==0){
+	unsigned version;
+	fread(&version,1,4,value_stream);
+	printf("%s %d\n", type, version);
     } else if(strcmp("defaultkey",type)==0){
 	char *public_key;
 	int public_key_length;
@@ -272,21 +287,25 @@ void display(DBT *key, DBT *value, void *data){
         free(b58);
     } else if(strcmp("pool",type)==0){
 	unsigned indx;
+	unsigned indxhi;
 	unsigned version;
 	unsigned date;
 	unsigned datehi;
+	struct tm *tm;
 	char *public_key;
 	int public_key_length;
 	char *b58;
 	fread(&indx,1,4,key_stream);
+	fread(&indxhi,1,4,key_stream);
 	fread(&version,1,4,value_stream);
 	fread(&date,1,4,value_stream);
 	fread(&datehi,1,4,value_stream);
+	tm=localtime((time_t*)&date);
         public_key_length=get_size(value_stream);
         public_key=(char *) malloc(public_key_length);
         fread(public_key,1,public_key_length,value_stream);
         b58=public_key_to_bc_address(public_key,public_key_length);
-	printf("%s %08x %08x %s\n", type, indx, date, b58);
+	printf("%s %08x %4d/%02d/%02d %s\n", type, indx, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, b58);
         free(public_key);
         free(b58);
     } else {
