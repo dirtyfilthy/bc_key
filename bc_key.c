@@ -257,12 +257,17 @@ void display(DBT *key, DBT *value, void *data){
     } else if(strcmp("acc",type)==0){
 	char *aname=get_string(key_stream);
 	printf("%s %s\n", type, aname);
+	free(aname);
     } else if(strcmp("acentry",type)==0){
 	char *aname=get_string(key_stream);
 	printf("%s %s\n", type, aname);
+	free(aname);
     } else if(strcmp("name",type)==0){
 	char *name=get_string(key_stream);
-	printf("%s %s\n", type, name);
+	char *value=get_string(value_stream);
+	printf("%s %s %s\n", type, name, value);
+	free(name);
+	free(value);
     } else if(strcmp("setting",type)==0){
 	int c;
 	char *setting=get_string(key_stream);
@@ -270,6 +275,7 @@ void display(DBT *key, DBT *value, void *data){
 	while((c=fgetc(value_stream)) != EOF)
 	    printf("%02x", c);
 	printf("\n");
+	free(setting);
     } else if(strcmp("version",type)==0){
 	unsigned version;
 	fread(&version,1,4,value_stream);
