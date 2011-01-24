@@ -252,6 +252,7 @@ void foreach_item(DB *db, void func(DBT *, DBT *,void *), void *data){
 void print_usage(char *here){
     printf("Usage:\n");
     printf("%s BITCOIN_ADDRESS /path/to/wallet.dat\n",here);
+    printf("%s ANY /path/to/wallet.dat\n",here);
     printf("%s 1qZGQG5Ls66oBbtLt3wPMa6zfq7CJ7f12 /home/dirtyfilthy/.bitcoin/wallet.dat\n",here);
 }
 
