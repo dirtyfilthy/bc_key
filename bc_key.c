@@ -119,7 +119,7 @@ static const char base58str[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmno
 
 /* Convert checksummed 160 bit hash into 34 char base58 bitcoin address */
 char *
-hash2addr (unsigned char hash160[25])
+addr_encode(unsigned char hash160[25])
 {
 	static char addr[34+1];
 	int i, j;
@@ -150,13 +150,6 @@ hash2addr (unsigned char hash160[25])
 	return addr;
 }
 
-char *base58_encode(char *buffer, int length){
-    char *s = malloc(35);
-    memcpy (s, hash2addr(buffer), 35);
-    return s;
-}
-
-
 char *public_key_to_bc_address(char *key, int length){
     char *digest1=sha256(key,length);
     char *digest2=ripemd160(digest1,SHA256_DIGEST_LENGTH);
@@ -172,7 +165,8 @@ char *public_key_to_bc_address(char *key, int length){
     free(digest1);
     free(digest2);
     free(checksum);
-    b58=base58_encode(final,RIPEMD160_DIGEST_LENGTH+5);
+    b58=(char *) malloc(35);
+    memcpy(b58, addr_encode(final), 35);
     free(final);
     return b58;
     

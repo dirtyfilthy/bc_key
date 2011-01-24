@@ -1,19 +1,24 @@
 ** Prerequisites:
 
-libgmp3-dev libssl-dev libdb4.6-dev
+libssl-dev libdb4.6-dev
 
 On debian just
 
-apt-get install libdb4.6-dev libgmp3-dev libssl-dev
+apt-get install libdb4.6-dev libssl-dev
 
 ** Compiling:
 
-gcc -g bc_key.c -ldb -lgmp -lcrypto -o bc_key
+gcc -g bc_key.c -ldb -lcrypto -o bc_key
 
 ** Usage:
 
 ./bc_key BITCOIN_ADDRESS /path/to/wallet.dat
+./bc_key ALL /path/to/wallet.dat
 
 
-Example: ./bc_key 1qZGQG5Ls66oBbtLt3wPMa6zfq7CJ7f12 /home/dirtyfilthy/.bitcoin/wallet.dat
+Examples:
+
+./bc_key 1qZGQG5Ls66oBbtLt3wPMa6zfq7CJ7f12 /home/dirtyfilthy/.bitcoin/wallet.dat
+
+./bc_key ALL /home/dirtyfilthy/.bitcoin/wallet.dat
 
