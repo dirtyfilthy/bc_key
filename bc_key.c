@@ -5,13 +5,11 @@
 #include <db.h>
 #include <string.h> 
 #include <unistd.h>
-#include <gmp.h>
 #include <openssl/buffer.h>
 #include <openssl/ecdsa.h>
 #include <openssl/sha.h>
 #include <openssl/ripemd.h>
 #include <openssl/evp.h>
-static const char* base58chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 DB *open_wallet(char *path){
 
@@ -116,35 +114,48 @@ char *ripemd160(char *string,int length)
     return digest;
 }
 
-char *base58_encode(char *buffer, int length){
-    mpz_t bn;
-    mpz_t bn2;
-    mpz_t r;
-    char digit;
-    size_t result_size;
-    char *result;
-    FILE *result_stream=open_memstream(&result,&result_size);
-    int i;
-    mpz_init(bn);
-    mpz_init(bn2);
-    mpz_init(r);    
-    mpz_import(bn,length,1,1,0,0,buffer);
-    while(mpz_cmp_ui(bn,58)>=0){
-        mpz_fdiv_qr_ui(bn2,r,bn,58);
-        mpz_set(bn,bn2);
-        digit=base58chars[(int) mpz_get_ui(r)];
-        fputc(digit,result_stream);
-    }
-    digit=base58chars[(int) mpz_get_ui(bn)];
-    fputc(digit,result_stream);
-    for(i=0;i<length && !buffer[i];i++){
-        fputc(base58chars[0],result_stream);
-    }
-    fclose(result_stream);
-    reverse_string(result);
-    return result;
+static const char base58str[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
+
+/* Convert checksummed 160 bit hash into 34 char base58 bitcoin address */
+char *
+hash2addr (unsigned char hash160[25])
+{
+	static char addr[34+1];
+	int i, j;
+
+	for (i=0; i<sizeof(addr); i++) addr[i] = 0;
+
+	for (j=0; j<25; j++) {
+		unsigned carry, rslt;
+		/* Multiply addr by 256 */
+		carry = 0;
+		for (i=sizeof(addr)-2; i>=0; i--) {
+			rslt = addr[i]*256 + carry;
+			addr[i] = rslt % 58;
+			carry = rslt / 58;
+		}
+		/* Add 8 bits from hash */
+		carry = hash160[j];
+		for (i=sizeof(addr)-2; i>=0 && carry!=0; i--) {
+			rslt = addr[i] + carry;
+			addr[i] = rslt % 58;
+			carry = rslt / 58;
+		}
+	}
+
+	/* Convert to char set */
+	for (i=0; i<sizeof(addr)-1; i++) addr[i] = base58str[addr[i]];
+
+	return addr;
 }
+
+char *base58_encode(char *buffer, int length){
+    char *s = malloc(35);
+    memcpy (s, hash2addr(buffer), 35);
+    return s;
+}
+
 
 char *public_key_to_bc_address(char *key, int length){
     char *digest1=sha256(key,length);
