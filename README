@@ -14,6 +14,7 @@ gcc -g bc_key.c -ldb -lcrypto -o bc_key
 
 ./bc_key BITCOIN_ADDRESS /path/to/wallet.dat
 ./bc_key ALL /path/to/wallet.dat
+./bc_key EVERYTHING /path/to/wallet.dat
 
 
 Examples:
@@ -21,4 +22,6 @@ Examples:
 ./bc_key 1qZGQG5Ls66oBbtLt3wPMa6zfq7CJ7f12 /home/dirtyfilthy/.bitcoin/wallet.dat
 
 ./bc_key ALL /home/dirtyfilthy/.bitcoin/wallet.dat
+
+./bc_key EVERYTHING /home/dirtyfilthy/.bitcoin/wallet.dat
 
