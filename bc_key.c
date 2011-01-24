@@ -230,6 +230,77 @@ void find_key(DBT *key, DBT *value, void *data){
     fclose(value_stream);
 }
 
+void display(DBT *key, DBT *value, void *data){
+    char *address=(char *) data;
+    FILE *key_stream=fmemopen(key->data,key->size,"r");
+    FILE *value_stream=fmemopen(value->data,value->size,"r");
+    char *type;
+    type=get_string(key_stream);
+    if(strcmp("key",type)==0){
+	char *public_key;
+	int public_key_length;
+	char *private_key;
+	int private_key_length;
+	char *b58;
+        public_key_length=get_size(key_stream);
+        public_key=(char *) malloc(public_key_length);
+        private_key_length=get_size(value_stream);
+        private_key=(char *) malloc(private_key_length);
+        fread(public_key,1,public_key_length,key_stream);
+        fread(private_key,1,private_key_length,value_stream);
+        b58=public_key_to_bc_address(public_key,public_key_length);
+	printf("%s %s\n", type, b58);
+        free(public_key);
+        free(private_key);
+        free(b58);
+    } else if(strcmp("name",type)==0){
+	char *name=get_string(key_stream);
+	printf("%s %s\n", type, name);
+    } else if(strcmp("setting",type)==0){
+	char *setting=get_string(key_stream);
+	printf("%s %s\n", type, setting);
+    } else if(strcmp("defaultkey",type)==0){
+	char *public_key;
+	int public_key_length;
+	char *b58;
+        public_key_length=get_size(value_stream);
+        public_key=(char *) malloc(public_key_length);
+        fread(public_key,1,public_key_length,value_stream);
+        b58=public_key_to_bc_address(public_key,public_key_length);
+	printf("%s %s\n", type, b58);
+        free(public_key);
+        free(b58);
+    } else if(strcmp("pool",type)==0){
+	unsigned indx;
+	unsigned version;
+	unsigned date;
+	unsigned datehi;
+	char *public_key;
+	int public_key_length;
+	char *b58;
+	fread(&indx,1,4,key_stream);
+	fread(&version,1,4,value_stream);
+	fread(&date,1,4,value_stream);
+	fread(&datehi,1,4,value_stream);
+        public_key_length=get_size(value_stream);
+        public_key=(char *) malloc(public_key_length);
+        fread(public_key,1,public_key_length,value_stream);
+        b58=public_key_to_bc_address(public_key,public_key_length);
+	printf("%s %08x %08x %s\n", type, indx, date, b58);
+        free(public_key);
+        free(b58);
+    } else {
+	int c;
+	printf("%s ", type);
+	while((c=fgetc(key_stream)) != EOF)
+	    printf("%02x", c);
+	printf("\n");
+    }
+    free(type);
+    fclose(key_stream);
+    fclose(value_stream);
+}
+
 void foreach_item(DB *db, void func(DBT *, DBT *,void *), void *data){
     DBC *cursor;
     DBT key, value;
@@ -253,6 +324,7 @@ void print_usage(char *here){
     printf("Usage:\n");
     printf("%s BITCOIN_ADDRESS /path/to/wallet.dat\n",here);
     printf("%s ANY /path/to/wallet.dat\n",here);
+    printf("%s EVERYTHING /path/to/wallet.dat\n",here);
     printf("%s 1qZGQG5Ls66oBbtLt3wPMa6zfq7CJ7f12 /home/dirtyfilthy/.bitcoin/wallet.dat\n",here);
 }
 
@@ -265,7 +337,10 @@ int main(int argc, char *argv[]){
         exit(1);
     }
     wallet=open_wallet(argv[2]);
-    foreach_item(wallet,find_key,argv[1]);
+    if(strcmp(argv[1],"EVERYTHING")==0)
+	foreach_item(wallet,display,NULL);
+    else
+	foreach_item(wallet,find_key,argv[1]);
 }
 
 
