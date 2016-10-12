@@ -4,14 +4,13 @@
 #include <stdio.h>
 #include <db.h>
 #include <string.h> 
+#include <time.h> 
 #include <unistd.h>
-#include <gmp.h>
 #include <openssl/buffer.h>
 #include <openssl/ecdsa.h>
 #include <openssl/sha.h>
 #include <openssl/ripemd.h>
 #include <openssl/evp.h>
-static const char* base58chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 DB *open_wallet(char *path){
 
@@ -116,34 +115,40 @@ char *ripemd160(char *string,int length)
     return digest;
 }
 
-char *base58_encode(char *buffer, int length){
-    mpz_t bn;
-    mpz_t bn2;
-    mpz_t r;
-    char digit;
-    size_t result_size;
-    char *result;
-    FILE *result_stream=open_memstream(&result,&result_size);
-    int i;
-    mpz_init(bn);
-    mpz_init(bn2);
-    mpz_init(r);    
-    mpz_import(bn,length,1,1,0,0,buffer);
-    while(mpz_cmp_ui(bn,58)>=0){
-        mpz_fdiv_qr_ui(bn2,r,bn,58);
-        mpz_set(bn,bn2);
-        digit=base58chars[(int) mpz_get_ui(r)];
-        fputc(digit,result_stream);
-    }
-    digit=base58chars[(int) mpz_get_ui(bn)];
-    fputc(digit,result_stream);
-    for(i=0;i<length && !buffer[i];i++){
-        fputc(base58chars[0],result_stream);
-    }
-    fclose(result_stream);
-    reverse_string(result);
-    return result;
+static const char base58str[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
+
+/* Convert checksummed 160 bit hash into 34 char base58 bitcoin address */
+char *
+addr_encode(unsigned char hash160[25])
+{
+	static char addr[34+1];
+	int i, j;
+
+	for (i=0; i<sizeof(addr); i++) addr[i] = 0;
+
+	for (j=0; j<25; j++) {
+		unsigned carry, rslt;
+		/* Multiply addr by 256 */
+		carry = 0;
+		for (i=sizeof(addr)-2; i>=0; i--) {
+			rslt = addr[i]*256 + carry;
+			addr[i] = rslt % 58;
+			carry = rslt / 58;
+		}
+		/* Add 8 bits from hash */
+		carry = hash160[j];
+		for (i=sizeof(addr)-2; i>=0 && carry!=0; i--) {
+			rslt = addr[i] + carry;
+			addr[i] = rslt % 58;
+			carry = rslt / 58;
+		}
+	}
+
+	/* Convert to char set */
+	for (i=0; i<sizeof(addr)-1; i++) addr[i] = base58str[addr[i]];
+
+	return addr;
 }
 
 char *public_key_to_bc_address(char *key, int length){
@@ -161,38 +166,27 @@ char *public_key_to_bc_address(char *key, int length){
     free(digest1);
     free(digest2);
     free(checksum);
-    b58=base58_encode(final,RIPEMD160_DIGEST_LENGTH+5);
+    b58=(char *) malloc(35);
+    memcpy(b58, addr_encode(final), 35);
     free(final);
     return b58;
     
 }
 
-void export_key(const unsigned char *key, int length, int private){
+void export_key(const unsigned char *key, int length){
     EC_KEY* pkey=EC_KEY_new();
-    EVP_PKEY *pubkey=EVP_PKEY_new();
     EC_GROUP *group = EC_GROUP_new_by_curve_name(NID_secp256k1);
     EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
     EC_GROUP_set_point_conversion_form(group, POINT_CONVERSION_UNCOMPRESSED);
     EC_KEY_set_group(pkey,group);
     BIO *out=BIO_new(BIO_s_file());
     BIO_set_fp(out,stdout,BIO_NOCLOSE);
-
-    if(private){
-        PEM_write_bio_ECPKParameters(out, group);
-        if(!d2i_ECPrivateKey(&pkey, &key, length)){
-            printf("failed to make key\n");
-            exit(1);
-        }
-
-        PEM_write_bio_ECPrivateKey(out,pkey,NULL,NULL,0,NULL,NULL);
+    if(!d2i_ECPrivateKey(&pkey, &key, length)){
+        printf("failed to make key\n");
+        exit(1);
     }
-    else{
-
-        o2i_ECPublicKey(&pkey, &key, length); 
-        EVP_PKEY_assign_EC_KEY(pubkey,pkey);
-        PEM_write_bio_PUBKEY(out, pubkey);
-    }
-
+    PEM_write_bio_ECPKParameters(out, group);
+    PEM_write_bio_ECPrivateKey(out,pkey,NULL,NULL,0,NULL,NULL);
 }
 
 
@@ -221,17 +215,111 @@ void find_key(DBT *key, DBT *value, void *data){
     if(found_key){
         b58=public_key_to_bc_address(public_key,public_key_length);
         if(strcmp(b58,address)==0){
-            export_key(private_key,private_key_length,1);
-            export_key(public_key,public_key_length,0);
+            export_key(private_key,private_key_length);
             exit(0);
         }
         if(strcmp("ALL",address)==0){
 	    printf("%s\n", b58);
-            export_key(private_key,private_key_length);
+            export_key(private_key,private_key_length,1);
         }
         free(public_key);
         free(private_key);
         free(b58);
+    }
+    free(type);
+    fclose(key_stream);
+    fclose(value_stream);
+}
+
+void display(DBT *key, DBT *value, void *data){
+    char *address=(char *) data;
+    FILE *key_stream=fmemopen(key->data,key->size,"r");
+    FILE *value_stream=fmemopen(value->data,value->size,"r");
+    char *type;
+    type=get_string(key_stream);
+    if(strcmp("key",type)==0){
+	char *public_key;
+	int public_key_length;
+	char *private_key;
+	int private_key_length;
+	char *b58;
+        public_key_length=get_size(key_stream);
+        public_key=(char *) malloc(public_key_length);
+        private_key_length=get_size(value_stream);
+        private_key=(char *) malloc(private_key_length);
+        fread(public_key,1,public_key_length,key_stream);
+        fread(private_key,1,private_key_length,value_stream);
+        b58=public_key_to_bc_address(public_key,public_key_length);
+	printf("%s %s\n", type, b58);
+        free(public_key);
+        free(private_key);
+        free(b58);
+    } else if(strcmp("acc",type)==0){
+	char *aname=get_string(key_stream);
+	printf("%s %s\n", type, aname);
+	free(aname);
+    } else if(strcmp("acentry",type)==0){
+	char *aname=get_string(key_stream);
+	printf("%s %s\n", type, aname);
+	free(aname);
+    } else if(strcmp("name",type)==0){
+	char *name=get_string(key_stream);
+	char *value=get_string(value_stream);
+	printf("%s %s %s\n", type, name, value);
+	free(name);
+	free(value);
+    } else if(strcmp("setting",type)==0){
+	int c;
+	char *setting=get_string(key_stream);
+	printf("%s %s ", type, setting);
+	while((c=fgetc(value_stream)) != EOF)
+	    printf("%02x", c);
+	printf("\n");
+	free(setting);
+    } else if(strcmp("version",type)==0){
+	unsigned version;
+	fread(&version,1,4,value_stream);
+	printf("%s %d\n", type, version);
+    } else if(strcmp("defaultkey",type)==0){
+	char *public_key;
+	int public_key_length;
+	char *b58;
+        public_key_length=get_size(value_stream);
+        public_key=(char *) malloc(public_key_length);
+        fread(public_key,1,public_key_length,value_stream);
+        b58=public_key_to_bc_address(public_key,public_key_length);
+	printf("%s %s\n", type, b58);
+        free(public_key);
+        free(b58);
+    } else if(strcmp("pool",type)==0){
+	unsigned indx;
+	unsigned indxhi;
+	unsigned version;
+	unsigned date;
+	unsigned datehi;
+	struct tm *tm;
+	char *public_key;
+	int public_key_length;
+	char *b58;
+	fread(&indx,1,4,key_stream);
+	fread(&indxhi,1,4,key_stream);
+	fread(&version,1,4,value_stream);
+	fread(&date,1,4,value_stream);
+	fread(&datehi,1,4,value_stream);
+	tm=localtime((time_t*)&date);
+        public_key_length=get_size(value_stream);
+        public_key=(char *) malloc(public_key_length);
+        fread(public_key,1,public_key_length,value_stream);
+        b58=public_key_to_bc_address(public_key,public_key_length);
+	printf("%s %08x %4d/%02d/%02d %s\n", type, indx, tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday, b58);
+        free(public_key);
+        free(b58);
+    } else {
+	int c;
+	printf("%s ", type);
+	while((c=fgetc(key_stream)) != EOF)
+	    printf("%02x", c);
+	printf("\n");
     }
     free(type);
     fclose(key_stream);
@@ -260,6 +348,8 @@ void foreach_item(DB *db, void func(DBT *, DBT *,void *), void *data){
 void print_usage(char *here){
     printf("Usage:\n");
     printf("%s BITCOIN_ADDRESS /path/to/wallet.dat\n",here);
+    printf("%s ANY /path/to/wallet.dat\n",here);
+    printf("%s EVERYTHING /path/to/wallet.dat\n",here);
     printf("%s 1qZGQG5Ls66oBbtLt3wPMa6zfq7CJ7f12 /home/dirtyfilthy/.bitcoin/wallet.dat\n",here);
 }
 
@@ -272,7 +362,10 @@ int main(int argc, char *argv[]){
         exit(1);
     }
     wallet=open_wallet(argv[2]);
-    foreach_item(wallet,find_key,argv[1]);
+    if(strcmp(argv[1],"EVERYTHING")==0)
+	foreach_item(wallet,display,NULL);
+    else
+	foreach_item(wallet,find_key,argv[1]);
 }
 
 
