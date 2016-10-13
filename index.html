@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Bc key by IiroVaris</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">Bc key</h1>
+        <p class="header">Bitcoin Private Key Extractor</p>
+
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/IiroVaris/bc_key/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/IiroVaris/bc_key/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/IiroVaris/bc_key">View On GitHub</a></li>
+        </ul>
+
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/IiroVaris">IiroVaris</a></p>
+
+
+      </header>
+      <section>
+        <p>** Prerequisites:</p>
+
+<p>libssl-dev libdb4.6-dev</p>
+
+<p>On debian just</p>
+
+<p>apt-get install libdb4.6-dev libssl-dev</p>
+
+<p>** Compiling:</p>
+
+<p>gcc -g bc_key.c -ldb -lcrypto -o bc_key</p>
+
+<p>** Usage:</p>
+
+<p>./bc_key BITCOIN_ADDRESS /path/to/wallet.dat
+./bc_key ALL /path/to/wallet.dat
+./bc_key EVERYTHING /path/to/wallet.dat</p>
+
+<p>Examples:</p>
+
+<p>./bc_key 1qZGQG5Ls66oBbtLt3wPMa6zfq7CJ7f12 /home/dirtyfilthy/.bitcoin/wallet.dat</p>
+
+<p>./bc_key ALL /home/dirtyfilthy/.bitcoin/wallet.dat</p>
+
+<p>./bc_key EVERYTHING /home/dirtyfilthy/.bitcoin/wallet.dat</p>
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		
+  </body>
+</html>

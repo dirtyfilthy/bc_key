@@ -1,0 +1,6 @@
+{
+  "name": "Bc key",
+  "tagline": "Bitcoin Private Key Extractor",
+  "body": "** Prerequisites:\r\n\r\nlibssl-dev libdb4.6-dev\r\n\r\nOn debian just\r\n\r\napt-get install libdb4.6-dev libssl-dev\r\n\r\n** Compiling:\r\n\r\ngcc -g bc_key.c -ldb -lcrypto -o bc_key\r\n\r\n** Usage:\r\n\r\n./bc_key BITCOIN_ADDRESS /path/to/wallet.dat\r\n./bc_key ALL /path/to/wallet.dat\r\n./bc_key EVERYTHING /path/to/wallet.dat\r\n\r\n\r\nExamples:\r\n\r\n./bc_key 1qZGQG5Ls66oBbtLt3wPMa6zfq7CJ7f12 /home/dirtyfilthy/.bitcoin/wallet.dat\r\n\r\n./bc_key ALL /home/dirtyfilthy/.bitcoin/wallet.dat\r\n\r\n./bc_key EVERYTHING /home/dirtyfilthy/.bitcoin/wallet.dat\r\n\r\n",
+  "note": "Don't delete this file! It's used internally to help with page regeneration."
+}
